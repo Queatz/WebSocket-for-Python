@@ -38,6 +38,8 @@ class Message(object):
             self.data = bytearray(data)
         elif isinstance(data, bytearray):
             self.data = data
+        elif isinstance(data, bytes):
+            self.data = bytearray(data)
         else:
             raise TypeError("'%s' is not a supported message data type" % type(data))
             
@@ -129,8 +131,8 @@ class BinaryMessage(Message):
         return False
 
 class CloseControlMessage(Message):
-    def __init__(self, code=1000, reason=''):
-        data = ""
+    def __init__(self, code=1000, reason=b''):
+        data = b""
         if code:
             data += struct.pack("!H", code)
         if reason:
