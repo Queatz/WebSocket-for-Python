@@ -265,7 +265,7 @@ class Stream(object):
                                     if not is_valid or not end_on_code_point:
                                         self.errors.append(CloseControlMessage(code=1007, reason='Invalid UTF-8 bytes'))
                                         break
-                            self.closing = CloseControlMessage(code=code, reason=reason.decode('utf-8'))
+                            self.closing = CloseControlMessage(code=code, reason=reason)
                         
                     elif frame.opcode == OPCODE_PING:
                         self.pings.append(PingControlMessage(bytes))
