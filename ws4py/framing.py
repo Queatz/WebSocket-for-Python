@@ -51,7 +51,7 @@ class Frame(object):
         if self._parser is None:
             self._parser = self._parsing()
             # Python generators must be initialized once.
-            self.parser.next()
+            next(self.parser)
         return self._parser
         
     def _cleanup(self):
@@ -64,7 +64,7 @@ class Frame(object):
         Builds a frame from the instance's attributes and returns
         its bytes representation.
         """
-        header = ''
+        header = b''
 
         if self.fin > 0x1:
             raise ValueError('FIN bit parameter must be 0 or 1')
@@ -78,11 +78,11 @@ class Frame(object):
         ## |N|V|V|V|       |
         ## | |1|2|3|       |
         ## +-+-+-+-+-------+
-        header += chr(((self.fin << 7)
+        header += ((self.fin << 7)
                        | (self.rsv1 << 6)
                        | (self.rsv2 << 5)
                        | (self.rsv3 << 4)
-                       | self.opcode))
+                       | self.opcode).to_bytes(1, 'little')
 
         ##                 +-+-------------+-------------------------------+
         ##                 |M| Payload len |    Extended payload length    |
@@ -97,11 +97,11 @@ class Frame(object):
 
         length = self.payload_length 
         if length < 126:
-            header += chr(mask_bit | length)
+            header += (mask_bit | length).to_bytes(1, 'little')
         elif length < (1 << 16):
-            header += chr(mask_bit | 126) + struct.pack('!H', length)
+            header += (mask_bit | 126) + struct.pack('!H', length).to_bytes(1, 'little')
         elif length < (1 << 63):
-            header += chr(mask_bit | 127) + struct.pack('!Q', length)
+            header += (mask_bit | 127) + struct.pack('!Q', length).to_bytes(1, 'little')
         else:
             raise FrameTooLargeException()
 
@@ -115,24 +115,24 @@ class Frame(object):
         ## |                     Payload Data continued ...                |
         ## +---------------------------------------------------------------+
         if not self.masking_key:
-            return header + self.body 
+            return header + self.body
 
         bytes = header + self.masking_key + self.mask(self.body)
-        return str(bytes)
+        return bytes
 
     def _parsing(self):
         """
         Generator to parse bytes into a frame. Yields until
         enough bytes have been read or an error is met.
         """
-        buf = ''
-        bytes = ''
+        buf = b''
+        bytes = b''
 
         # yield until we get the first header's byte
         while not bytes or len(bytes) < 1:
             bytes = (yield 1)
 
-        first_byte = ord(bytes[0])
+        first_byte = bytes[0]
         self.fin = (first_byte >> 7) & 1
         self.rsv1 = (first_byte >> 6) & 1
         self.rsv2 = (first_byte >> 5) & 1
@@ -165,7 +165,7 @@ class Frame(object):
         while not bytes or len(bytes) < 1:
             bytes = (yield 1)
  
-        second_byte = ord(bytes[0])
+        second_byte = bytes[0]
         mask = (second_byte >> 7) & 1
         self.payload_length = second_byte & 0x7f
 
@@ -177,14 +177,14 @@ class Frame(object):
             buf = bytes[1:]
             bytes = buf
         else:
-            buf = ''
-            bytes = ''
+            buf = b''
+            bytes = b''
 
         if self.payload_length == 127:
             if len(buf) < 8:
                 nxt_buf_size = 8 - len(buf)
                 bytes = (yield nxt_buf_size)
-                bytes = buf + (bytes or '')
+                bytes = buf + (bytes or b'')
                 while len(bytes) < 8:
                     b = (yield 8 - len(bytes))
                     if b is not None:
@@ -203,7 +203,7 @@ class Frame(object):
             if len(buf) < 2:
                 nxt_buf_size = 2 - len(buf)
                 bytes = (yield nxt_buf_size)
-                bytes = buf + (bytes or '')
+                bytes = buf + (bytes or b'')
                 while len(bytes) < 2:
                     b = (yield 2 - len(bytes))
                     if b is not None:
@@ -221,7 +221,7 @@ class Frame(object):
             if len(buf) < 4:
                 nxt_buf_size = 4 - len(buf)
                 bytes = (yield nxt_buf_size)
-                bytes = buf + (bytes or '')
+                bytes = buf + (bytes or b'')
                 while not bytes or len(bytes) < 4:
                     b = (yield 4 - len(bytes))
                     if b is not None:
@@ -236,7 +236,7 @@ class Frame(object):
         if len(buf) < self.payload_length:
             nxt_buf_size = self.payload_length - len(buf)
             bytes = (yield nxt_buf_size)
-            bytes = buf + (bytes or '')
+            bytes = buf + (bytes or b'')
             while len(bytes) < self.payload_length:
                 l = self.payload_length - len(bytes)
                 b = (yield l)
@@ -261,10 +261,11 @@ class Frame(object):
            transformed-octet-i = original-octet-i XOR masking-key-octet-j
            
         """
+        import struct
         masked = bytearray(data)
-        key = map(ord, self.masking_key)
+        key = list(self.masking_key)
         for i in range(len(data)):
-            masked[i] = masked[i] ^ key[i%4]
+            masked[i] = (masked[i] ^ key[i%4])
         return masked
 
     unmask = mask

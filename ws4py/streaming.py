@@ -84,7 +84,7 @@ class Stream(object):
         if self._parser is None:
             self._parser = self.receiver()
             # Python generators must be initialized once.
-            self.parser.next()
+            next(self.parser)
         return self._parser
         
     def _cleanup(self):
@@ -178,7 +178,7 @@ class Stream(object):
             frame = Frame()
             while 1:
                 try:
-                    bytes = (yield frame.parser.next())
+                    bytes = (yield next(frame.parser))
                     frame.parser.send(bytes)
                 except StopIteration:
                     frame._cleanup()
@@ -251,7 +251,7 @@ class Stream(object):
                             except TypeError:
                                 code = 1002
                                 reason = 'Invalid Closing Frame Code Type'
-                            except struct.error, sr:
+                            except struct.error as sr:
                                 code = 1002
                                 reason = 'Failed at decoding closing code'
                             else:

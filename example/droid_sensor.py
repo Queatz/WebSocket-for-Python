@@ -64,7 +64,7 @@ class AirPongSensor(object):
                     continue
                 
                 c = lambda rad: rad * 360.0 / math.pi
-                print c(azimuth), c(pitch), c(roll), x, y, z
+                print(c(azimuth), c(pitch), c(roll), x, y, z)
 
                 if self.client.terminated:
                     break

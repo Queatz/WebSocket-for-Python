@@ -65,7 +65,7 @@ class CherryPyTest(unittest.TestCase):
         h = EchoWebSocket(s, [], [])
         cherrypy.engine.publish('handle-websocket', h, ('127.0.0.1', 0))
         self.assertEquals(len(cherrypy.engine.websocket.pool), 1)
-        k = cherrypy.engine.websocket.pool.keys()[0]
+        k = list(cherrypy.engine.websocket.pool.keys())[0]
         self.assertTrue(k is h)
         self.assertEquals(cherrypy.engine.websocket.pool[k][1], ('127.0.0.1', 0))
 

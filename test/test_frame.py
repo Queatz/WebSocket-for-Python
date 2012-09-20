@@ -84,7 +84,7 @@ class WSFrameParserTest(unittest.TestCase):
         f = Frame()
         self.assertEqual(type(f.parser), types.GeneratorType)
         f.parser.close()
-        self.assertRaises(StopIteration, f.parser.next)
+        self.assertRaises(StopIteration, f.parser.__next__)
 
     def test_frame_header_parsing(self):
         bytes = Frame(opcode=OPCODE_TEXT, body='hello', fin=1).build()
@@ -111,7 +111,7 @@ class WSFrameParserTest(unittest.TestCase):
         
         f = Frame()
         f.parser.send(bytes)
-        self.assertRaises(StopIteration, f.parser.next)
+        self.assertRaises(StopIteration, f.parser.__next__)
         self.assertEqual(f.body, 'hello')
         
     def test_incremental_parsing_small_7_bit_length(self):

@@ -103,7 +103,7 @@ class Utf8Validator:
       total amount of consumed bytes.
       """
       l = len(ba)
-      for i in xrange(0, l):
+      for i in range(0, l):
          ## optimized version of decode(), since we are not interested in actual code points
          self.state = Utf8Validator.UTF8VALIDATOR_DFA[256 + (self.state << 4) + Utf8Validator.UTF8VALIDATOR_DFA[ba[i]]]
          if self.state == Utf8Validator.UTF8_REJECT:
@@ -131,9 +131,9 @@ def setTestSequences():
    # All prefixes of correct UTF-8 text
    vs = ["All prefixes of a valid UTF-8 string that contains multi-byte code points", []]
    v = Utf8Validator()
-   for i in xrange(1, len(vss) + 1):
+   for i in range(1, len(vss) + 1):
       v.reset()
-      res = v.validate(bytearray(vss[:i]))
+      res = v.validate(bytearray(vss[:i], 'utf8'))
       vs[1].append((res[0] and res[1], vss[:i]))
    UTF8_TEST_SEQUENCES.append(vs)
 
@@ -187,7 +187,7 @@ def setTestSequences():
    vs[1].append((False, '\x80\xbf\x80\xbf\x80'))
    vs[1].append((False, '\x80\xbf\x80\xbf\x80\xbf'))
    s = ""
-   for i in xrange(0x80, 0xbf):
+   for i in range(0x80, 0xbf):
       s += chr(i)
    vs[1].append((False, s))
    UTF8_TEST_SEQUENCES.append(vs)
@@ -197,7 +197,7 @@ def setTestSequences():
    m = [(0xc0, 0xdf), (0xe0, 0xef), (0xf0, 0xf7), (0xf8, 0xfb), (0xfc, 0xfd)]
    for mm in m:
       s = ''
-      for i in xrange(mm[0], mm[1]):
+      for i in range(mm[0], mm[1]):
          s += chr(i)
          s += chr(0x20)
       vs[1].append((False, s))
@@ -301,30 +301,30 @@ def test_utf8():
       vs.extend(k[1])
 
    # All Unicode code points
-   for i in xrange(0, 0xffff): # should by 0x10ffff, but non-wide Python build is limited to 16-bits
+   for i in range(0, 0xffff): # should by 0x10ffff, but non-wide Python build is limited to 16-bits
       if i < 0xD800 or i > 0xDFFF: # filter surrogate code points, which are disallowed to encode in UTF-8
-         vs.append((True, unichr(i).encode("utf-8")))
+         vs.append((True, chr(i).encode("utf-8")))
 
    # 5.1 Single UTF-16 surrogates
-   for i in xrange(0xD800, 0xDBFF): # high-surrogate
-      ss = unichr(i).encode("utf-8")
+   for i in range(0xD800, 0xDBFF): # high-surrogate
+      ss = chr(i).encode("utf-8")
       vs.append((False, ss))
-   for i in xrange(0xDC00, 0xDFFF): # low-surrogate
-      ss = unichr(i).encode("utf-8")
+   for i in range(0xDC00, 0xDFFF): # low-surrogate
+      ss = chr(i).encode("utf-8")
       vs.append((False, ss))
 
    # 5.2 Paired UTF-16 surrogates
-   for i in xrange(0xD800, 0xDBFF): # high-surrogate
-      for j in xrange(0xDC00, 0xDFFF): # low-surrogate
-         ss1 = unichr(i).encode("utf-8")
-         ss2 = unichr(j).encode("utf-8")
+   for i in range(0xD800, 0xDBFF): # high-surrogate
+      for j in range(0xDC00, 0xDFFF): # low-surrogate
+         ss1 = chr(i).encode("utf-8")
+         ss2 = chr(j).encode("utf-8")
          vs.append((False, ss1 + ss2))
          vs.append((False, ss2 + ss1))
 
    # now test and assert ..
    for s in vs:
       v.reset()
-      r = v.validate(bytearray(s[1]))
+      r = v.validate(bytearray(s[1], 'utf8'))
       res = r[0] and r[1] # no UTF-8 decode error and everything consumed
       assert res == s[0]
 
@@ -337,7 +337,7 @@ def test_utf8_incremental():
    v = Utf8Validator()
 
    v.reset()
-   assert (True, True, 15, 15) == v.validate(bytearray("µ@ßöäüàá"))
+   assert (True, True, 15, 15) == v.validate(bytearray("µ@ßöäüàá", 'utf8'))
 
    v.reset()
    assert (False, False, 0, 0) == v.validate(bytearray([0xF5]))

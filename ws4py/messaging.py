@@ -31,8 +31,8 @@ class Message(object):
         self.opcode = opcode
         self._completed = False
 
-        if isinstance(data, basestring):
-            if isinstance(data, unicode):
+        if isinstance(data, str):
+            if isinstance(data, str):
                 data = data.encode(encoding)
             # bytarrays are way faster than strings
             self.data = bytearray(data)
@@ -91,7 +91,7 @@ class Message(object):
         """
         Add more ``data`` to the message.
         """
-        if isinstance(data, unicode):
+        if isinstance(data, str):
             data = data.encode(self.encoding)
         self.data.extend(data)
         
@@ -102,7 +102,7 @@ class Message(object):
         return str(self.data)
 
     def __unicode__(self):
-        return unicode(self.data, self.encoding or 'utf-8')
+        return str(self.data, self.encoding or 'utf-8')
 
 class TextMessage(Message):
     def __init__(self, text=None):

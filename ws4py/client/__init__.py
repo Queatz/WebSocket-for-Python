@@ -5,7 +5,7 @@ import os
 import socket
 import ssl
 import types
-from urlparse import urlsplit
+from urllib.parse import urlsplit
 import json
 
 from ws4py import WS_KEY, WS_VERSION

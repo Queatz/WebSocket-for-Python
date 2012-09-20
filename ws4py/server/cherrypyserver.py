@@ -74,9 +74,10 @@ from cherrypy.wsgiserver import HTTPConnection, HTTPRequest
 
 from ws4py import WS_KEY, WS_VERSION
 from ws4py.exc import HandshakeError
-from ws4py.websocket import WebSocket
+from ws4py.websocket import WebSocket, EchoWebSocket
 
 __all__ = ['WebSocketTool', 'WebSocketPlugin']
+
 
 class WebSocketTool(Tool):
     def __init__(self):
@@ -144,7 +145,7 @@ class WebSocketTool(Tool):
         
         key = request.headers.get('Sec-WebSocket-Key')
         if key:
-            ws_key = base64.b64decode(key)
+            ws_key = base64.b64decode(key.encode())
             if len(ws_key) != 16:
                 raise HandshakeError("WebSocket key's length is invalid")
         
@@ -188,55 +189,56 @@ class WebSocketTool(Tool):
         response.headers['Upgrade'] = 'websocket'
         response.headers['Connection'] = 'Upgrade'
         response.headers['Sec-WebSocket-Version'] = str(version)
-        response.headers['Sec-WebSocket-Accept'] = base64.b64encode(sha1(key + WS_KEY).digest())
+        response.headers['Sec-WebSocket-Accept'] = base64.b64encode(sha1((key + WS_KEY).encode()).digest())
         if ws_protocols:
             response.headers['Sec-WebSocket-Protocol'] = ', '.join(ws_protocols)
         if ws_extensions:
             response.headers['Sec-WebSocket-Extensions'] = ','.join(ws_extensions)
 
-	addr = (request.remote.ip, request.remote.port)
-        ws_conn = request.rfile.rfile._sock
+        addr = (request.remote.ip, request.remote.port)
+        
+        ws_conn = request.rfile.rfile._raw._sock
         request.ws_handler = handler_cls(ws_conn, ws_protocols, ws_extensions,
                                          request.wsgi_environ.copy())
         
     def complete(self):
         """
-	Sets some internal flags of CherryPy so that it
-	doesn't close the socket down.
-	"""
+        Sets some internal flags of CherryPy so that it
+        doesn't close the socket down.
+        """
         self._set_internal_flags()
 
     def cleanup_headers(self):
         """
-	Some clients aren't that smart when it comes to
-	headers lookup.
-	"""
+        Some clients aren't that smart when it comes to
+        headers lookup.
+        """
         response = cherrypy.response
         if not response.header_list:
             return
         
         headers = response.header_list[:]
         for (k, v) in headers:
-            if k.startswith('Sec-Web'):
+            if k.startswith(b'Sec-Web'):
                 response.header_list.remove((k, v))
-                response.header_list.append((k.replace('Sec-Websocket', 'Sec-WebSocket'), v))
+                response.header_list.append((k.replace(b'Sec-Websocket', b'Sec-WebSocket'), v))
 
     def start_handler(self):
         """
-	Runs at the end of the request processing by calling
-	the opened method of the handler. 
-	"""
+        Runs at the end of the request processing by calling
+        the opened method of the handler. 
+        """
         request = cherrypy.request
         if not hasattr(request, 'ws_handler'):
             return
 
-	addr = (request.remote.ip, request.remote.port)
+        addr = (request.remote.ip, request.remote.port)
         ws_handler = request.ws_handler
         request.ws_handler = None
         delattr(request, 'ws_handler')
-	# By doing this we detach the socket from
-	# the CherryPy stack avoiding memory leaks
-	request.rfile.rfile._sock = None
+        # By doing this we detach the socket from
+        # the CherryPy stack avoiding memory leaks
+        request.rfile.rfile._sock = None
         
         cherrypy.engine.publish('handle-websocket', ws_handler, addr)
         
@@ -293,11 +295,11 @@ class WebSocketPlugin(plugins.SimplePlugin):
 
     def handle(self, ws_handler, peer_addr):
         """
-	Tracks the provided handler.
+        Tracks the provided handler.
 
-	@param ws_handler: websocket handler instance
-	@param peer_addr: remote peer address for tracing purpose
-	"""
+        @param ws_handler: websocket handler instance
+        @param peer_addr: remote peer address for tracing purpose
+        """
         cherrypy.log("Managing WebSocket connection from %s:%d" % (peer_addr[0], peer_addr[1]))
         th = threading.Thread(target=ws_handler.run, name="WebSocket client at %s:%d" % (peer_addr[0], peer_addr[1]))
         th.daemon = True
@@ -309,7 +311,7 @@ class WebSocketPlugin(plugins.SimplePlugin):
         Called within the engine's mainloop to drop connections
         that have terminated since last iteration.
         """
-        handlers = self.pool.keys()[:]
+        handlers = list(self.pool.keys())[:]
         for handler in handlers:
             if handler.terminated:
                 th, addr = self.pool[handler]
@@ -345,21 +347,24 @@ class WebSocketPlugin(plugins.SimplePlugin):
             
 if __name__ == '__main__':
     import random
-    cherrypy.config.update({'server.socket_host': '127.0.0.1',
-                            'server.socket_port': 9000})
+    cherrypy.config.update({'server.socket_host': '127.0.0.1', 'server.socket_port': 9000})
     WebSocketPlugin(cherrypy.engine).subscribe()
     cherrypy.tools.websocket = WebSocketTool()
     
     class Root(object):
         @cherrypy.expose
-        @cherrypy.tools.websocket(on=False)
         def ws(self):
+            pass
+        
+        @cherrypy.expose
+        def index(self):
             return """<html>
         <head>
           <script type='application/javascript' src='https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js'> </script>
           <script type='application/javascript'>
             $(document).ready(function() {
-              var ws = new WebSocket('ws://192.168.0.10:9000/');
+              var ws = new WebSocket('ws://127.0.0.1:9000/ws');
+              a = ws;
               ws.onmessage = function (evt) {
                  $('#chat').val($('#chat').val() + evt.data + '\\n');                  
               };
@@ -388,9 +393,5 @@ if __name__ == '__main__':
         </html>
         """ % {'username': "User%d" % random.randint(0, 100)}
 
-        @cherrypy.expose
-        def index(self):
-            cherrypy.log("Handler created: %s" % repr(cherrypy.request.ws_handler))
-        
-    cherrypy.quickstart(Root(), '/', config={'/': {'tools.websocket.on': True,
-                                                   'tools.websocket.handler_cls': EchoWebSocketHandler}})
+    cherrypy.quickstart(Root(), '/', config={'/ws': {'tools.websocket.on': True,
+                                                   'tools.websocket.handler_cls': EchoWebSocket}})

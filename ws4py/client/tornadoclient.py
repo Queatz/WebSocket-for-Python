@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import socket
-from urlparse import urlsplit
+from urllib.parse import urlsplit
 import ssl
 
 from tornado import iostream, escape
@@ -107,7 +107,7 @@ if __name__ == '__main__':
                 self.send("*" * i)
 
         def received_message(self, m):
-            print m, len(str(m))
+            print(m, len(str(m)))
             if len(str(m)) == 175:
                 self.close()
 

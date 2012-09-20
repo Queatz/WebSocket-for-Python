@@ -2,7 +2,7 @@
 from gevent import monkey; monkey.patch_all()
 
 import copy
-from urlparse import urlsplit
+from urllib.parse import urlsplit
 
 import gevent
 from gevent import Greenlet
@@ -48,22 +48,22 @@ if __name__ == '__main__':
     ws.connect()
     
     ws.send("Hello world")
-    print ws.receive()
+    print(ws.receive())
     
     ws.send("Hello world again")
-    print ws.receive()
+    print(ws.receive())
     
     def incoming():
         while True:
             m = ws.receive()
             if m is not None:
-                print m, len(str(m))
+                print(m, len(str(m)))
                 if len(str(m)) == 35:
                     ws.close()
                     break
             else:
                 break
-        print "Connection closed!"
+        print("Connection closed!")
     
     def outgoing():
         for i in range(0, 40, 5):
